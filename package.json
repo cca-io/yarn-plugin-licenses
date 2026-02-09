@@ -1,0 +1,25 @@
+{
+  "name": "@yarnpkg/plugin-licenses",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "yarn@4.12.0",
+  "main": "./sources/index.ts",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "yarn builder build plugin",
+    "lint": "biome check sources tests",
+    "format": "biome format --write sources tests",
+    "typecheck": "tsc --noEmit",
+    "test": "yarn typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "latest",
+    "@types/node": "latest",
+    "@yarnpkg/builder": "latest",
+    "@yarnpkg/cli": "latest",
+    "@yarnpkg/core": "latest",
+    "@yarnpkg/fslib": "latest",
+    "clipanion": "latest",
+    "typescript": "latest"
+  }
+}
