@@ -3,7 +3,7 @@ import { Configuration, Project, structUtils, type Workspace } from '@yarnpkg/co
 import { ppath, xfs } from '@yarnpkg/fslib'
 import { Option, UsageError } from 'clipanion'
 
-import { collectLicenseEntries, resolveOutputPath } from '../lib/licensesReport'
+import { collectLicenseEntries, renderTextReport, resolveOutputPath } from '../lib/licensesReport'
 
 export class LicensesReportCommand extends BaseCommand {
   static override paths = [[`licenses`, `list`]]
@@ -48,8 +48,12 @@ export class LicensesReportCommand extends BaseCommand {
   })
 
   output = Option.String(`-o,--output`, {
-    description: `write JSON to file (stdout if omitted)`,
+    description: `write report to file (stdout if omitted)`,
     required: false,
+  })
+
+  json = Option.Boolean(`--json`, false, {
+    description: `emit JSON instead of text`,
   })
 
   async execute(): Promise<number> {
@@ -89,14 +93,14 @@ export class LicensesReportCommand extends BaseCommand {
       recursiveNpm: this.recursiveNpm,
     })
 
-    const json = `${JSON.stringify(entries, null, 2)}\n`
+    const output = this.json ? `${JSON.stringify(entries, null, 2)}\n` : renderTextReport(entries)
 
     if (this.output) {
       const outputPath = resolveOutputPath(this.context.cwd, this.output)
       await xfs.mkdirPromise(ppath.dirname(outputPath), { recursive: true })
-      await xfs.writeFilePromise(outputPath, json)
+      await xfs.writeFilePromise(outputPath, output)
     } else {
-      this.context.stdout.write(json)
+      this.context.stdout.write(output)
     }
 
     return 0

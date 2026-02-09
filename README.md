@@ -69,7 +69,15 @@ Select specific workspace(s):
 yarn licenses list -w @scope/app -w packages/web -r
 ```
 
-## Output format
+Generate JSON instead of default text output:
+
+```bash
+yarn licenses list -A -r --json
+```
+
+## Output formats
+
+Default output is tree-style text (similar to Yarn 1 `licenses list`).
 
 JSON array entries:
 

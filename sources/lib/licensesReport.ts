@@ -21,6 +21,30 @@ export type LicenseEntry = {
   url: string
 }
 
+export function renderTextReport(entries: Array<LicenseEntry>): string {
+  if (entries.length === 0) {
+    return ''
+  }
+
+  const lines: Array<string> = []
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index]
+    if (!entry) {
+      continue
+    }
+
+    const isLast = index === entries.length - 1
+    const rootPrefix = isLast ? '└─' : '├─'
+    const childPrefix = isLast ? '   ' : '│  '
+
+    lines.push(`${rootPrefix} ${entry.name}@${entry.version}`)
+    lines.push(`${childPrefix}├─ License: ${entry.licenseType}`)
+    lines.push(`${childPrefix}└─ URL: ${entry.url}`)
+  }
+
+  return `${lines.join('\n')}\n`
+}
+
 type CollectOptions = {
   configuration: Configuration
   project: Project

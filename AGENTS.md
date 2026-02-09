@@ -18,10 +18,10 @@ Produce JSON shaped like:
 ```
 
 Notes:
-- Output is a JSON array of package entries.
+- Default output is tree-style text (similar to Yarn 1 `licenses list`).
+- JSON output is a JSON array of package entries when `--json` is set.
 - Entries are sorted by `name` (stable ordering).
 - Metadata must come from dependency package metadata.
-- JSON is the only supported output format.
 
 ## Functional Requirements
 1. Support Yarn 4 projects, including monorepos with workspaces.
@@ -104,8 +104,11 @@ Notes:
 - `-w, --workspace <name>` (repeatable): limit scope to specific workspace(s).
 - `-A, --all-workspaces`: process full monorepo.
 - `-d, --include-dev`: include dev dependencies.
-- `-r, --recursive`: traverse transitive dependencies.
-- `-o, --output <file>`: write JSON report (otherwise print to stdout).
+- `--include-root-deps`: include root workspace dependencies as additional dependency seeds.
+- `--recursive-workspaces`: recursively traverse workspace-to-workspace dependency edges.
+- `-r, --recursive-npm`: recursively traverse npm dependency graph.
+- `--json`: emit JSON output (default is text output).
+- `-o, --output <file>`: write report output to file (otherwise print to stdout).
 - `--check-licenses <allowlist-file|csv>`: enforce license allow-list.
 - `--check-vulns`: enable vulnerability/CVE checks.
 
