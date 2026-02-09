@@ -57,6 +57,12 @@ Write report to file:
 yarn licenses list -A -r -o licenses.json
 ```
 
+Include root workspace dependencies as additional seed dependencies:
+
+```bash
+yarn licenses list -w @scope/app --include-root-deps -r
+```
+
 Select specific workspace(s):
 
 ```bash

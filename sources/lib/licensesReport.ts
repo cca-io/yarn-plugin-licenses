@@ -115,10 +115,21 @@ function collectExternalLocatorHashes({
   const external = new Set<LocatorHash>()
   const visitedWorkspaceCwds = new Set<string>()
   const visitedLocatorHashes = new Set<LocatorHash>()
+  const queuedWorkspaceCwds = new Set<string>()
+  const queuedLocatorHashes = new Set<LocatorHash>()
 
   const queue: Array<
     { type: 'workspace'; workspace: Workspace } | { type: 'locator'; locatorHash: LocatorHash }
-  > = workspaces.map((workspace) => ({ type: 'workspace', workspace }))
+  > = []
+
+  for (const workspace of workspaces) {
+    if (queuedWorkspaceCwds.has(workspace.cwd)) {
+      continue
+    }
+
+    queuedWorkspaceCwds.add(workspace.cwd)
+    queue.push({ type: 'workspace', workspace })
+  }
 
   while (queue.length > 0) {
     const node = queue.shift()
@@ -152,13 +163,17 @@ function collectExternalLocatorHashes({
         const resolvedWorkspace = project.tryWorkspaceByLocator(resolvedPackage)
         if (resolvedWorkspace) {
           if (recursiveWorkspaces) {
-            queue.push({ type: 'workspace', workspace: resolvedWorkspace })
+            if (!queuedWorkspaceCwds.has(resolvedWorkspace.cwd)) {
+              queuedWorkspaceCwds.add(resolvedWorkspace.cwd)
+              queue.push({ type: 'workspace', workspace: resolvedWorkspace })
+            }
           }
           continue
         }
 
         external.add(resolution)
-        if (recursiveNpm && !visitedLocatorHashes.has(resolution)) {
+        if (recursiveNpm && !queuedLocatorHashes.has(resolution)) {
+          queuedLocatorHashes.add(resolution)
           queue.push({ type: 'locator', locatorHash: resolution })
         }
       }
@@ -195,13 +210,17 @@ function collectExternalLocatorHashes({
       const resolvedWorkspace = project.tryWorkspaceByLocator(resolvedPackage)
       if (resolvedWorkspace) {
         if (recursiveWorkspaces) {
-          queue.push({ type: 'workspace', workspace: resolvedWorkspace })
+          if (!queuedWorkspaceCwds.has(resolvedWorkspace.cwd)) {
+            queuedWorkspaceCwds.add(resolvedWorkspace.cwd)
+            queue.push({ type: 'workspace', workspace: resolvedWorkspace })
+          }
         }
         continue
       }
 
       external.add(resolution)
-      if (!visitedLocatorHashes.has(resolution)) {
+      if (!queuedLocatorHashes.has(resolution)) {
+        queuedLocatorHashes.add(resolution)
         queue.push({ type: 'locator', locatorHash: resolution })
       }
     }

@@ -35,6 +35,10 @@ export class LicensesReportCommand extends BaseCommand {
     description: `include dev dependencies`,
   })
 
+  includeRootDeps = Option.Boolean(`--include-root-deps`, false, {
+    description: `treat root workspace dependencies as additional seed dependencies`,
+  })
+
   recursiveWorkspaces = Option.Boolean(`--recursive-workspaces`, false, {
     description: `traverse workspace-to-workspace dependencies recursively`,
   })
@@ -59,11 +63,14 @@ export class LicensesReportCommand extends BaseCommand {
     await project.restoreInstallState()
 
     const selectedWorkspaces = this.selectWorkspaces(project, workspace)
+    const seedWorkspaces = this.includeRootDeps
+      ? dedupeWorkspaces([...selectedWorkspaces, project.topLevelWorkspace])
+      : selectedWorkspaces
     if (this.recursiveWorkspaces) {
       const workspaceEdgeCount = countDirectWorkspaceEdges(
         configuration,
         project,
-        selectedWorkspaces,
+        seedWorkspaces,
         this.includeDev,
       )
       if (workspaceEdgeCount === 0) {
@@ -76,7 +83,7 @@ export class LicensesReportCommand extends BaseCommand {
     const entries = await collectLicenseEntries({
       configuration,
       project,
-      workspaces: selectedWorkspaces,
+      workspaces: seedWorkspaces,
       includeDev: this.includeDev,
       recursiveWorkspaces: this.recursiveWorkspaces,
       recursiveNpm: this.recursiveNpm,
@@ -121,6 +128,22 @@ export class LicensesReportCommand extends BaseCommand {
 
     throw new UsageError(`No workspace selected. Use --all-workspaces or --workspace.`)
   }
+}
+
+function dedupeWorkspaces(workspaces: Array<Workspace>): Array<Workspace> {
+  const seen = new Set<string>()
+  const deduped: Array<Workspace> = []
+
+  for (const workspace of workspaces) {
+    if (seen.has(workspace.cwd)) {
+      continue
+    }
+
+    seen.add(workspace.cwd)
+    deduped.push(workspace)
+  }
+
+  return deduped
 }
 
 function matchesWorkspace(workspace: Workspace, input: string): boolean {
