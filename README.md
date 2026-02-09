@@ -36,31 +36,31 @@ yarn plugin import /absolute/path/to/bundles/@yarnpkg/plugin-licenses.js
 Generate report for current workspace:
 
 ```bash
-yarn licenses report
+yarn licenses list
 ```
 
 Generate npm-recursive report for all workspaces including dev dependencies:
 
 ```bash
-yarn licenses report -A -r -d
+yarn licenses list -A -r -d
 ```
 
 Generate both workspace-recursive and npm-recursive report:
 
 ```bash
-yarn licenses report -A --recursive-workspaces -r
+yarn licenses list -A --recursive-workspaces -r
 ```
 
 Write report to file:
 
 ```bash
-yarn licenses report -A -r -o licenses.json
+yarn licenses list -A -r -o licenses.json
 ```
 
 Select specific workspace(s):
 
 ```bash
-yarn licenses report -w @scope/app -w packages/web -r
+yarn licenses list -w @scope/app -w packages/web -r
 ```
 
 ## Output format

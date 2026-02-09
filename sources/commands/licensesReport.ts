@@ -6,19 +6,19 @@ import { Option, UsageError } from 'clipanion'
 import { collectLicenseEntries, resolveOutputPath } from '../lib/licensesReport'
 
 export class LicensesReportCommand extends BaseCommand {
-  static override paths = [[`licenses`, `report`]]
+  static override paths = [[`licenses`, `list`]]
 
   static override usage = {
     description: `generate a third-party dependency license report`,
     details: `Generate a JSON report with name, version, license type, and repository URL for third-party dependencies.`,
     examples: [
-      [`Generate recursive npm report for all workspaces`, `yarn licenses report -A -r`] as [
+      [`Generate recursive npm report for all workspaces`, `yarn licenses list -A -r`] as [
         string,
         string,
       ],
       [
         `Generate recursive workspace and npm report`,
-        `yarn licenses report -A --recursive-workspaces -r`,
+        `yarn licenses list -A --recursive-workspaces -r`,
       ] as [string, string],
     ],
   }
