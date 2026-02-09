@@ -39,10 +39,16 @@ Generate report for current workspace:
 yarn licenses report
 ```
 
-Generate report for all workspaces recursively including dev dependencies:
+Generate npm-recursive report for all workspaces including dev dependencies:
 
 ```bash
 yarn licenses report -A -r -d
+```
+
+Generate both workspace-recursive and npm-recursive report:
+
+```bash
+yarn licenses report -A --recursive-workspaces -r
 ```
 
 Write report to file:

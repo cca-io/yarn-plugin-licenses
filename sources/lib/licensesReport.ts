@@ -26,7 +26,8 @@ type CollectOptions = {
   project: Project
   workspaces: Array<Workspace>
   includeDev: boolean
-  recursive: boolean
+  recursiveWorkspaces: boolean
+  recursiveNpm: boolean
 }
 
 type PackageMetadata = {
@@ -39,14 +40,16 @@ export async function collectLicenseEntries({
   project,
   workspaces,
   includeDev,
-  recursive,
+  recursiveWorkspaces,
+  recursiveNpm,
 }: CollectOptions): Promise<Array<LicenseEntry>> {
   const externalLocatorHashes = collectExternalLocatorHashes({
     configuration,
     project,
     workspaces,
     includeDev,
-    recursive,
+    recursiveWorkspaces,
+    recursiveNpm,
   })
 
   const fetcher = configuration.makeFetcher()
@@ -54,11 +57,10 @@ export async function collectLicenseEntries({
   const report = new ThrowReport()
   const checksums = new Map(project.storedChecksums) as Map<LocatorHash, string | null>
 
-  const entries: Array<LicenseEntry> = []
-  for (const locatorHash of externalLocatorHashes) {
+  const entries = await mapWithConcurrency([...externalLocatorHashes], 16, async (locatorHash) => {
     const pkg = project.storedPackages.get(locatorHash)
     if (!pkg) {
-      continue
+      return null
     }
 
     const metadata = await readPackageMetadata({
@@ -70,13 +72,13 @@ export async function collectLicenseEntries({
       pkg,
     })
 
-    entries.push({
+    return {
       name: structUtils.stringifyIdent(pkg),
       version: pkg.version ?? '',
       licenseType: metadata.licenseType,
       url: metadata.url,
-    })
-  }
+    }
+  })
 
   entries.sort((left, right) => {
     const byName = left.name.localeCompare(right.name)
@@ -100,13 +102,15 @@ function collectExternalLocatorHashes({
   project,
   workspaces,
   includeDev,
-  recursive,
+  recursiveWorkspaces,
+  recursiveNpm,
 }: {
   configuration: Configuration
   project: Project
   workspaces: Array<Workspace>
   includeDev: boolean
-  recursive: boolean
+  recursiveWorkspaces: boolean
+  recursiveNpm: boolean
 }): Set<LocatorHash> {
   const external = new Set<LocatorHash>()
   const visitedWorkspaceCwds = new Set<string>()
@@ -147,14 +151,14 @@ function collectExternalLocatorHashes({
 
         const resolvedWorkspace = project.tryWorkspaceByLocator(resolvedPackage)
         if (resolvedWorkspace) {
-          if (recursive) {
+          if (recursiveWorkspaces) {
             queue.push({ type: 'workspace', workspace: resolvedWorkspace })
           }
           continue
         }
 
         external.add(resolution)
-        if (recursive && !visitedLocatorHashes.has(resolution)) {
+        if (recursiveNpm && !visitedLocatorHashes.has(resolution)) {
           queue.push({ type: 'locator', locatorHash: resolution })
         }
       }
@@ -173,6 +177,10 @@ function collectExternalLocatorHashes({
       continue
     }
 
+    if (!recursiveNpm) {
+      continue
+    }
+
     for (const descriptor of pkg.dependencies.values()) {
       const resolution = project.storedResolutions.get(descriptor.descriptorHash)
       if (!resolution) {
@@ -186,7 +194,9 @@ function collectExternalLocatorHashes({
 
       const resolvedWorkspace = project.tryWorkspaceByLocator(resolvedPackage)
       if (resolvedWorkspace) {
-        queue.push({ type: 'workspace', workspace: resolvedWorkspace })
+        if (recursiveWorkspaces) {
+          queue.push({ type: 'workspace', workspace: resolvedWorkspace })
+        }
         continue
       }
 
@@ -300,4 +310,34 @@ function parseRawLicenseType(rawLicenses: unknown): string | null {
   }
 
   return values.join(' OR ')
+}
+
+async function mapWithConcurrency<T, U>(
+  items: Array<T>,
+  concurrency: number,
+  mapper: (item: T) => Promise<U | null>,
+): Promise<Array<U>> {
+  const maxConcurrency = Math.max(1, Math.floor(concurrency))
+  const result: Array<U> = []
+  let nextIndex = 0
+
+  async function runWorker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex
+      nextIndex += 1
+      const currentItem = items[currentIndex]
+      if (currentItem === undefined) {
+        continue
+      }
+
+      const mapped = await mapper(currentItem)
+      if (mapped !== null) {
+        result.push(mapped)
+      }
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(maxConcurrency, items.length) }, () => runWorker())
+  await Promise.all(workers)
+  return result
 }

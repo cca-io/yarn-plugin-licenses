@@ -12,10 +12,14 @@ export class LicensesReportCommand extends BaseCommand {
     description: `generate a third-party dependency license report`,
     details: `Generate a JSON report with name, version, license type, and repository URL for third-party dependencies.`,
     examples: [
-      [`Generate recursive report for all workspaces`, `yarn licenses report -A -r`] as [
+      [`Generate recursive npm report for all workspaces`, `yarn licenses report -A -r`] as [
         string,
         string,
       ],
+      [
+        `Generate recursive workspace and npm report`,
+        `yarn licenses report -A --recursive-workspaces -r`,
+      ] as [string, string],
     ],
   }
 
@@ -31,8 +35,12 @@ export class LicensesReportCommand extends BaseCommand {
     description: `include dev dependencies`,
   })
 
-  recursive = Option.Boolean(`-r,--recursive`, false, {
-    description: `traverse transitive dependencies`,
+  recursiveWorkspaces = Option.Boolean(`--recursive-workspaces`, false, {
+    description: `traverse workspace-to-workspace dependencies recursively`,
+  })
+
+  recursiveNpm = Option.Boolean(`-r,--recursive-npm`, false, {
+    description: `traverse third-party npm dependencies recursively`,
   })
 
   output = Option.String(`-o,--output`, {
@@ -57,7 +65,8 @@ export class LicensesReportCommand extends BaseCommand {
       project,
       workspaces: selectedWorkspaces,
       includeDev: this.includeDev,
-      recursive: this.recursive,
+      recursiveWorkspaces: this.recursiveWorkspaces,
+      recursiveNpm: this.recursiveNpm,
     })
 
     const json = `${JSON.stringify(entries, null, 2)}\n`
