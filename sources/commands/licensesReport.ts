@@ -1,6 +1,6 @@
 import { BaseCommand } from '@yarnpkg/cli'
 import { Configuration, Project, structUtils, type Workspace } from '@yarnpkg/core'
-import { xfs } from '@yarnpkg/fslib'
+import { ppath, xfs } from '@yarnpkg/fslib'
 import { Option, UsageError } from 'clipanion'
 
 import { collectLicenseEntries, resolveOutputPath } from '../lib/licensesReport'
@@ -41,6 +41,10 @@ export class LicensesReportCommand extends BaseCommand {
   })
 
   async execute(): Promise<number> {
+    if (this.allWorkspaces && (this.workspaces?.length ?? 0) > 0) {
+      throw new UsageError(`Use either --all-workspaces or --workspace, not both.`)
+    }
+
     const configuration = await Configuration.find(this.context.cwd, this.context.plugins)
     const { project, workspace } = await Project.find(configuration, this.context.cwd)
 
@@ -60,6 +64,7 @@ export class LicensesReportCommand extends BaseCommand {
 
     if (this.output) {
       const outputPath = resolveOutputPath(this.context.cwd, this.output)
+      await xfs.mkdirPromise(ppath.dirname(outputPath), { recursive: true })
       await xfs.writeFilePromise(outputPath, json)
     } else {
       this.context.stdout.write(json)

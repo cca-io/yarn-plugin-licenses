@@ -6,11 +6,13 @@
   "main": "./sources/index.ts",
   "license": "UNLICENSED",
   "scripts": {
+    "compile": "tsc -p tsconfig.json",
     "build": "yarn builder build plugin",
     "lint": "biome check sources tests",
     "format": "biome format --write sources tests",
     "typecheck": "tsc --noEmit",
-    "test": "yarn typecheck"
+    "test:unit": "yarn compile && node --test dist/tests/unit/**/*.test.js",
+    "test": "yarn lint && yarn typecheck && yarn test:unit"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",

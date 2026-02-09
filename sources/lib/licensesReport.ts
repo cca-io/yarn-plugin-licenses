@@ -246,9 +246,13 @@ async function readPackageMetadata({
     const manifest = fetchResult.prefixPath.endsWith(`/${Manifest.fileName}`)
       ? await Manifest.fromFile(fetchResult.prefixPath, { baseFs: fetchResult.packageFs })
       : await Manifest.find(fetchResult.prefixPath, { baseFs: fetchResult.packageFs })
-    const rawMetadata = manifest.raw as { repository?: unknown; homepage?: unknown }
+    const rawMetadata = manifest.raw as {
+      repository?: unknown
+      homepage?: unknown
+      licenses?: unknown
+    }
 
-    const licenseType = manifest.license ?? 'UNKNOWN'
+    const licenseType = manifest.license ?? parseRawLicenseType(rawMetadata.licenses) ?? 'UNKNOWN'
     const url =
       normalizeRepositoryUrl(rawMetadata.repository) ??
       normalizeRepositoryUrl(rawMetadata.homepage) ??
@@ -267,4 +271,33 @@ export function resolveOutputPath(cwd: string, outputPath: string): PortablePath
   const portableCwd = npath.toPortablePath(cwd)
   const portableOutputPath = npath.toPortablePath(outputPath)
   return ppath.resolve(portableCwd, portableOutputPath)
+}
+
+function parseRawLicenseType(rawLicenses: unknown): string | null {
+  if (!Array.isArray(rawLicenses) || rawLicenses.length === 0) {
+    return null
+  }
+
+  const values = rawLicenses
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return entry.trim()
+      }
+
+      if (entry && typeof entry === 'object') {
+        const candidate = (entry as { type?: unknown }).type
+        if (typeof candidate === 'string') {
+          return candidate.trim()
+        }
+      }
+
+      return ''
+    })
+    .filter((entry) => entry.length > 0)
+
+  if (values.length === 0) {
+    return null
+  }
+
+  return values.join(' OR ')
 }
