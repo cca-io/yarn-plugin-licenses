@@ -59,6 +59,19 @@ export class LicensesReportCommand extends BaseCommand {
     await project.restoreInstallState()
 
     const selectedWorkspaces = this.selectWorkspaces(project, workspace)
+    if (this.recursiveWorkspaces) {
+      const workspaceEdgeCount = countDirectWorkspaceEdges(
+        configuration,
+        project,
+        selectedWorkspaces,
+        this.includeDev,
+      )
+      if (workspaceEdgeCount === 0) {
+        this.context.stderr.write(
+          `Warning: --recursive-workspaces is enabled, but no workspace dependencies were found from the selected workspace roots.\n`,
+        )
+      }
+    }
 
     const entries = await collectLicenseEntries({
       configuration,
@@ -124,4 +137,44 @@ function matchesWorkspace(workspace: Workspace, input: string): boolean {
   const segments = workspace.relativeCwd.split('/')
   const basename = segments[segments.length - 1] ?? workspace.relativeCwd
   return basename === input
+}
+
+function countDirectWorkspaceEdges(
+  configuration: Configuration,
+  project: Project,
+  workspaces: Array<Workspace>,
+  includeDev: boolean,
+): number {
+  let edges = 0
+
+  for (const workspace of workspaces) {
+    const dependencyDescriptors = [...workspace.manifest.dependencies.values()].map((descriptor) =>
+      configuration.normalizeDependency(descriptor),
+    )
+    if (includeDev) {
+      dependencyDescriptors.push(
+        ...[...workspace.manifest.devDependencies.values()].map((descriptor) =>
+          configuration.normalizeDependency(descriptor),
+        ),
+      )
+    }
+
+    for (const descriptor of dependencyDescriptors) {
+      const resolution = project.storedResolutions.get(descriptor.descriptorHash)
+      if (!resolution) {
+        continue
+      }
+
+      const resolvedPackage = project.storedPackages.get(resolution)
+      if (!resolvedPackage) {
+        continue
+      }
+
+      if (project.tryWorkspaceByLocator(resolvedPackage)) {
+        edges += 1
+      }
+    }
+  }
+
+  return edges
 }
