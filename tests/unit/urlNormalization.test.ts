@@ -22,3 +22,8 @@ test('supports repository object shape', () => {
   const actual = normalizeRepositoryUrl({ type: 'git', url: 'git://github.com/org/repo.git' })
   assert.equal(actual, 'https://github.com/org/repo')
 })
+
+test('normalizes github shorthand owner/repo format', () => {
+  const actual = normalizeRepositoryUrl('formatjs/formatjs')
+  assert.equal(actual, 'https://github.com/formatjs/formatjs')
+})

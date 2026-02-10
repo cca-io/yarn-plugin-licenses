@@ -37,6 +37,17 @@ function extractUrl(input: unknown): string | null {
 }
 
 function toHttps(input: string): string {
+  const githubShortcut = input.match(/^([^/@:\s]+)\/([^#\s]+)$/)
+  if (githubShortcut) {
+    const owner = githubShortcut[1]
+    const repo = githubShortcut[2]
+    return `https://github.com/${owner}/${repo}`
+  }
+
+  if (input.startsWith('github:')) {
+    return `https://github.com/${input.slice('github:'.length)}`
+  }
+
   const sshLike = input.match(/^git@([^:]+):(.+)$/)
   if (sshLike) {
     const host = sshLike[1]
