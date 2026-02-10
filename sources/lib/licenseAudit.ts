@@ -81,6 +81,10 @@ export function hasAuditViolations(entries: Array<LicenseAuditEntry>): boolean {
   return entries.some((entry) => entry.status === 'violation')
 }
 
+export function getAuditViolations(entries: Array<LicenseAuditEntry>): Array<LicenseAuditEntry> {
+  return entries.filter((entry) => entry.status === 'violation')
+}
+
 function extractLicenseTokens(licenseType: string): Array<string> {
   const raw = licenseType.trim()
   if (raw.length === 0) {

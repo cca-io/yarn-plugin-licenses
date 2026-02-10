@@ -5,6 +5,7 @@ import { Option, UsageError } from 'clipanion'
 
 import {
   auditLicenseEntries,
+  getAuditViolations,
   hasAuditViolations,
   parseAllowValues,
   renderLicenseAuditText,
@@ -97,9 +98,10 @@ export class LicensesAuditCommand extends BaseCommand {
     })
 
     const auditEntries = auditLicenseEntries(entries, allowRules)
+    const violationEntries = getAuditViolations(auditEntries)
     const output = this.json
-      ? `${JSON.stringify(auditEntries, null, 2)}\n`
-      : renderLicenseAuditText(auditEntries)
+      ? `${JSON.stringify(violationEntries, null, 2)}\n`
+      : renderLicenseAuditText(violationEntries)
 
     if (this.output) {
       const outputPath = resolveOutputPath(this.context.cwd, this.output)

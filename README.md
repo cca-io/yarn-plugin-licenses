@@ -104,6 +104,8 @@ Audit licenses against an allow-list (strict, exits non-zero on violations):
 yarn licenses audit -A -r --allow MIT,Apache-2.0
 ```
 
+Audit output includes violations only.
+
 Notes:
 
 - Output contains third-party dependencies only (workspaces are excluded).

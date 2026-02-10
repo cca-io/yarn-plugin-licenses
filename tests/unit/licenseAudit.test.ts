@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   auditLicenseEntries,
+  getAuditViolations,
   hasAuditViolations,
   parseAllowValues,
   renderLicenseAuditText,
@@ -29,8 +30,8 @@ test('auditLicenseEntries marks allowed and violation correctly', () => {
   assert.equal(hasAuditViolations(entries), true)
 })
 
-test('renderLicenseAuditText returns detailed entries', () => {
-  const text = renderLicenseAuditText([
+test('getAuditViolations filters allowed entries', () => {
+  const violations = getAuditViolations([
     {
       name: 'a',
       version: '1.0.0',
@@ -40,8 +41,34 @@ test('renderLicenseAuditText returns detailed entries', () => {
       matchedAllowRule: 'MIT',
       detectedLicenseTokens: ['MIT'],
     },
+    {
+      name: 'b',
+      version: '1.0.0',
+      licenseType: 'GPL-3.0',
+      url: 'u',
+      status: 'violation',
+      matchedAllowRule: null,
+      detectedLicenseTokens: ['GPL-3.0'],
+    },
   ])
 
-  assert.match(text, /ALLOWED a@1.0.0/)
-  assert.match(text, /matchedAllowRule: MIT/)
+  assert.equal(violations.length, 1)
+  assert.equal(violations[0]?.name, 'b')
+})
+
+test('renderLicenseAuditText returns detailed violation entries', () => {
+  const text = renderLicenseAuditText([
+    {
+      name: 'b',
+      version: '1.0.0',
+      licenseType: 'GPL-3.0',
+      url: 'u',
+      status: 'violation',
+      matchedAllowRule: null,
+      detectedLicenseTokens: ['GPL-3.0'],
+    },
+  ])
+
+  assert.match(text, /VIOLATION b@1.0.0/)
+  assert.match(text, /matchedAllowRule: none/)
 })
