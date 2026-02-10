@@ -98,6 +98,12 @@ Generate disclaimer text (Yarn 1 style):
 yarn licenses generate-disclaimer -A --recursive-workspaces -r -o THIRD_PARTY_NOTICES.txt
 ```
 
+Audit licenses against an allow-list (strict, exits non-zero on violations):
+
+```bash
+yarn licenses audit -A -r --allow MIT,Apache-2.0
+```
+
 Notes:
 
 - Output contains third-party dependencies only (workspaces are excluded).

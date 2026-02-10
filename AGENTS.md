@@ -43,8 +43,9 @@ Notes:
 ## Bonus Requirements
 1. License policy check:
    - Validate dependencies against an allow-list of license types (e.g. MIT, Apache-2.0).
+   - Implement as `yarn licenses audit`.
 2. Vulnerability check:
-   - Report known security issues/CVEs per dependency.
+   - Out of scope for this plugin. Use `yarn npm audit`.
 
 ## Engineering Preferences
 - New standalone project.
@@ -103,6 +104,7 @@ Notes:
 ## Suggested CLI Behaviors
 - `licenses list`: list third-party licenses (text by default, JSON with `--json`).
 - `licenses generate-disclaimer`: generate third-party disclaimer/notice text.
+- `licenses audit`: strict license allow-list audit (always detailed output).
 - `-w, --workspace <name>` (repeatable): limit scope to specific workspace(s).
 - `-A, --all-workspaces`: process full monorepo.
 - `-d, --include-dev-deps`: include dev dependencies.
@@ -111,8 +113,7 @@ Notes:
 - `-r, --recursive-npm`: recursively traverse npm dependency graph.
 - `--json`: emit JSON output (default is text output).
 - `-o, --output <file>`: write report output to file (otherwise print to stdout).
-- `--check-licenses <allowlist-file|csv>`: enforce license allow-list.
-- `--check-vulns`: enable vulnerability/CVE checks.
+- `--allow <license[,license...]>` (repeatable): allow-list license types for `licenses audit`.
 
 ## Acceptance Criteria
 1. Same lockfile and same flags produce byte-stable output.
