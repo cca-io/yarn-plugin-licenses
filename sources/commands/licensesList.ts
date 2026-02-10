@@ -10,7 +10,7 @@ import {
   resolveOutputPath,
 } from '../lib/licensesReport'
 
-export class LicensesReportCommand extends BaseCommand {
+export class LicensesListCommand extends BaseCommand {
   static override paths = [[`licenses`, `list`]]
 
   static override usage = {
@@ -36,7 +36,7 @@ export class LicensesReportCommand extends BaseCommand {
     description: `workspace name (repeatable)`,
   })
 
-  includeDev = Option.Boolean(`-d,--include-dev`, false, {
+  includeDev = Option.Boolean(`-d,--include-dev-deps`, false, {
     description: `include dev dependencies`,
   })
 

@@ -101,9 +101,11 @@ Notes:
   - Repeat runs with same lockfile/flags must yield identical output.
 
 ## Suggested CLI Behaviors
+- `licenses list`: list third-party licenses (text by default, JSON with `--json`).
+- `licenses generate-disclaimer`: generate third-party disclaimer/notice text.
 - `-w, --workspace <name>` (repeatable): limit scope to specific workspace(s).
 - `-A, --all-workspaces`: process full monorepo.
-- `-d, --include-dev`: include dev dependencies.
+- `-d, --include-dev-deps`: include dev dependencies.
 - `--include-root-deps`: include root workspace dependencies as additional dependency seeds.
 - `--recursive-workspaces`: recursively traverse workspace-to-workspace dependency edges.
 - `-r, --recursive-npm`: recursively traverse npm dependency graph.

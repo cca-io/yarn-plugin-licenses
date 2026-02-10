@@ -10,7 +10,7 @@ import {
   ThrowReport,
   type Workspace,
 } from '@yarnpkg/core'
-import { npath, type PortablePath, ppath } from '@yarnpkg/fslib'
+import { type FakeFS, npath, type PortablePath, ppath } from '@yarnpkg/fslib'
 
 import { normalizeRepositoryUrl } from './urlNormalization'
 
@@ -19,6 +19,14 @@ export type LicenseEntry = {
   version: string
   licenseType: string
   url: string
+}
+
+export type DisclaimerEntry = {
+  name: string
+  version: string
+  licenseType: string
+  url: string
+  licenseText: string
 }
 
 export function renderTextReport(entries: Array<LicenseEntry>): string {
@@ -43,6 +51,42 @@ export function renderTextReport(entries: Array<LicenseEntry>): string {
   }
 
   return `${lines.join('\n')}\n`
+}
+
+export function renderDisclaimerReport(entries: Array<DisclaimerEntry>): string {
+  if (entries.length === 0) {
+    return ''
+  }
+
+  const textGroups = new Map<string, Array<DisclaimerEntry>>()
+  for (const entry of entries) {
+    const groupKey = entry.licenseText.trim().length > 0 ? entry.licenseText : NO_LICENSE_TEXT
+    const groupEntries = textGroups.get(groupKey) ?? []
+    groupEntries.push(entry)
+    textGroups.set(groupKey, groupEntries)
+  }
+
+  const grouped = [...textGroups.entries()].sort(([left], [right]) => left.localeCompare(right))
+  const sections: Array<string> = []
+
+  for (const [groupText, groupEntries] of grouped) {
+    const packages = groupEntries
+      .map((entry) => `${entry.name}@${entry.version}`)
+      .sort((left, right) => left.localeCompare(right))
+      .join(', ')
+
+    const printableText = groupText === NO_LICENSE_TEXT ? NO_LICENSE_TEXT_MESSAGE : groupText.trim()
+    sections.push(
+      [
+        `The following software may be included in this product: ${packages}.`,
+        `This software contains the following license and notice below:`,
+        ``,
+        printableText,
+      ].join('\n'),
+    )
+  }
+
+  return `${sections.join(`\n\n${DISCLAIMER_SEPARATOR}\n\n`)}\n`
 }
 
 type CollectOptions = {
@@ -163,6 +207,73 @@ export async function collectLicenseEntries({
     }
 
     return left.url.localeCompare(right.url)
+  })
+
+  return entries
+}
+
+export async function collectDisclaimerEntries({
+  configuration,
+  project,
+  workspaces,
+  includeDev,
+  recursiveWorkspaces,
+  recursiveNpm,
+}: Omit<CollectOptions, 'debugPackageName' | 'onDebugEntry'>): Promise<Array<DisclaimerEntry>> {
+  const externalLocatorHashes = collectExternalLocatorHashes({
+    configuration,
+    project,
+    workspaces,
+    includeDev,
+    recursiveWorkspaces,
+    recursiveNpm,
+  })
+
+  const fetcher = configuration.makeFetcher()
+  const cache = await Cache.find(configuration)
+  const report = new ThrowReport()
+  const checksums = new Map(project.storedChecksums) as Map<LocatorHash, string | null>
+
+  const entries = await mapWithConcurrency([...externalLocatorHashes], 8, async (locatorHash) => {
+    const pkg = project.storedPackages.get(locatorHash)
+    if (!pkg) {
+      return null
+    }
+
+    const metadata = await readPackageMetadata({
+      project,
+      fetcher,
+      cache,
+      report,
+      checksums,
+      pkg,
+    })
+
+    const licenseText = await readPackageLicenseText({
+      project,
+      fetcher,
+      cache,
+      report,
+      checksums,
+      pkg,
+    })
+
+    return {
+      name: structUtils.stringifyIdent(pkg),
+      version: pkg.version ?? '',
+      licenseType: metadata.licenseType,
+      url: metadata.url,
+      licenseText,
+    }
+  })
+
+  entries.sort((left, right) => {
+    const byName = left.name.localeCompare(right.name)
+    if (byName !== 0) {
+      return byName
+    }
+
+    return left.version.localeCompare(right.version)
   })
 
   return entries
@@ -333,6 +444,104 @@ async function readPackageMetadata({
   checksums: Map<LocatorHash, string | null>
   pkg: Package
 }): Promise<PackageMetadata> {
+  return withFetchedPackageManifest(
+    {
+      project,
+      fetcher,
+      cache,
+      report,
+      checksums,
+      pkg,
+    },
+    async ({ manifest }) => {
+      const rawMetadata = manifest.raw as {
+        repository?: unknown
+        homepage?: unknown
+        licenses?: unknown
+      }
+
+      const licenseType = manifest.license ?? parseRawLicenseType(rawMetadata.licenses) ?? 'UNKNOWN'
+      const url =
+        normalizeRepositoryUrl(rawMetadata.homepage) ??
+        normalizeRepositoryUrl(rawMetadata.repository) ??
+        ''
+
+      return {
+        licenseType,
+        url,
+        rawRepository: rawMetadata.repository,
+        rawHomepage: rawMetadata.homepage,
+      }
+    },
+  )
+}
+
+async function readPackageLicenseText({
+  project,
+  fetcher,
+  cache,
+  report,
+  checksums,
+  pkg,
+}: {
+  project: Project
+  fetcher: ReturnType<Configuration['makeFetcher']>
+  cache: Cache
+  report: ThrowReport
+  checksums: Map<LocatorHash, string | null>
+  pkg: Package
+}): Promise<string> {
+  return withFetchedPackageManifest(
+    {
+      project,
+      fetcher,
+      cache,
+      report,
+      checksums,
+      pkg,
+    },
+    async ({ manifest, packageFs, manifestPath }) => {
+      const rawLicenseText = (manifest.raw as { licenseText?: unknown }).licenseText
+      const packageRootPath = manifestPath.endsWith(`/${Manifest.fileName}`)
+        ? ppath.dirname(manifestPath)
+        : manifestPath
+
+      const licenseFromFiles = await readLicenseTextFromFiles(packageFs, packageRootPath)
+      if (licenseFromFiles) {
+        return licenseFromFiles
+      }
+
+      if (typeof rawLicenseText === 'string') {
+        return rawLicenseText
+      }
+
+      return ''
+    },
+  )
+}
+
+async function withFetchedPackageManifest<T>(
+  {
+    project,
+    fetcher,
+    cache,
+    report,
+    checksums,
+    pkg,
+  }: {
+    project: Project
+    fetcher: ReturnType<Configuration['makeFetcher']>
+    cache: Cache
+    report: ThrowReport
+    checksums: Map<LocatorHash, string | null>
+    pkg: Package
+  },
+  handler: (data: {
+    manifest: Manifest
+    packageFs: FakeFS<PortablePath>
+    manifestPath: PortablePath
+  }) => Promise<T>,
+): Promise<T> {
   const devirtualized = structUtils.ensureDevirtualizedLocator(pkg)
   const fetchResult = await fetcher.fetch(devirtualized, {
     project,
@@ -346,24 +555,11 @@ async function readPackageMetadata({
     const manifest = fetchResult.prefixPath.endsWith(`/${Manifest.fileName}`)
       ? await Manifest.fromFile(fetchResult.prefixPath, { baseFs: fetchResult.packageFs })
       : await Manifest.find(fetchResult.prefixPath, { baseFs: fetchResult.packageFs })
-    const rawMetadata = manifest.raw as {
-      repository?: unknown
-      homepage?: unknown
-      licenses?: unknown
-    }
-
-    const licenseType = manifest.license ?? parseRawLicenseType(rawMetadata.licenses) ?? 'UNKNOWN'
-    const url =
-      normalizeRepositoryUrl(rawMetadata.homepage) ??
-      normalizeRepositoryUrl(rawMetadata.repository) ??
-      ''
-
-    return {
-      licenseType,
-      url,
-      rawRepository: rawMetadata.repository,
-      rawHomepage: rawMetadata.homepage,
-    }
+    return await handler({
+      manifest,
+      packageFs: fetchResult.packageFs,
+      manifestPath: fetchResult.prefixPath,
+    })
   } finally {
     fetchResult.releaseFs?.()
   }
@@ -433,3 +629,43 @@ async function mapWithConcurrency<T, U>(
   await Promise.all(workers)
   return result
 }
+
+async function readLicenseTextFromFiles(
+  packageFs: FakeFS<PortablePath>,
+  packageRootPath: PortablePath,
+): Promise<string | null> {
+  let entries: Array<PortablePath>
+  try {
+    entries = await packageFs.readdirPromise(packageRootPath)
+  } catch {
+    return null
+  }
+
+  const sortedEntries = [...entries].sort((left, right) => left.localeCompare(right))
+  for (const fileName of sortedEntries) {
+    const baseName = fileName.toString()
+    if (!LICENSE_FILE_PATTERN.test(baseName)) {
+      continue
+    }
+
+    const candidatePath = ppath.join(packageRootPath, fileName)
+    try {
+      const stat = await packageFs.statPromise(candidatePath)
+      if (!stat.isFile()) {
+        continue
+      }
+
+      const content = await packageFs.readFilePromise(candidatePath, 'utf8')
+      if (content.trim().length > 0) {
+        return content
+      }
+    } catch {}
+  }
+
+  return null
+}
+
+const LICENSE_FILE_PATTERN = /^(license|licence|copying|notice)(\..+)?$/i
+const NO_LICENSE_TEXT = `__NO_LICENSE_TEXT__`
+const NO_LICENSE_TEXT_MESSAGE = `License text was not found in the package distribution.`
+const DISCLAIMER_SEPARATOR = `--------------------------------------------------------------------------------`

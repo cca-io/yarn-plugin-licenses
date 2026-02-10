@@ -1,9 +1,10 @@
 import type { Plugin } from '@yarnpkg/core'
 
-import { LicensesReportCommand } from './commands/licensesReport'
+import { LicensesGenerateDisclaimerCommand } from './commands/licensesGenerateDisclaimer'
+import { LicensesListCommand } from './commands/licensesList'
 
 const plugin: Plugin = {
-  commands: [LicensesReportCommand],
+  commands: [LicensesListCommand, LicensesGenerateDisclaimerCommand],
 }
 
 export default plugin

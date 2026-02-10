@@ -92,6 +92,12 @@ JSON array entries:
 ]
 ```
 
+Generate disclaimer text (Yarn 1 style):
+
+```bash
+yarn licenses generate-disclaimer -A --recursive-workspaces -r -o THIRD_PARTY_NOTICES.txt
+```
+
 Notes:
 
 - Output contains third-party dependencies only (workspaces are excluded).
