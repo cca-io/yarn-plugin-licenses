@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "yarn@4.12.0",
   "main": "./sources/index.ts",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "scripts": {
     "compile": "tsc -p tsconfig.json",
     "build": "yarn builder build plugin",
