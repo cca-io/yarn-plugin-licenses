@@ -1,5 +1,5 @@
 import { BaseCommand } from '@yarnpkg/cli'
-import { Configuration, Project, structUtils, type Workspace } from '@yarnpkg/core'
+import { Configuration, Project } from '@yarnpkg/core'
 import { ppath, xfs } from '@yarnpkg/fslib'
 import { Option, UsageError } from 'clipanion'
 
@@ -8,6 +8,7 @@ import {
   renderDisclaimerReport,
   resolveOutputPath,
 } from '../lib/licensesReport'
+import { dedupeWorkspaces, selectWorkspacesFromOptions } from '../lib/workspaces'
 
 export class LicensesGenerateDisclaimerCommand extends BaseCommand {
   static override paths = [[`licenses`, `generate-disclaimer`]]
@@ -66,12 +67,12 @@ export class LicensesGenerateDisclaimerCommand extends BaseCommand {
 
     await project.restoreInstallState()
 
-    const selectedWorkspaces = selectWorkspaces(
+    const selectedWorkspaces = selectWorkspacesFromOptions({
       project,
-      workspace,
-      this.allWorkspaces,
-      this.workspaces,
-    )
+      currentWorkspace: workspace,
+      allWorkspaces: this.allWorkspaces,
+      workspaceInputs: this.workspaces,
+    })
     const seedWorkspaces = this.includeRootDeps
       ? dedupeWorkspaces([...selectedWorkspaces, project.topLevelWorkspace])
       : selectedWorkspaces
@@ -97,68 +98,4 @@ export class LicensesGenerateDisclaimerCommand extends BaseCommand {
 
     return 0
   }
-}
-
-function selectWorkspaces(
-  project: Project,
-  currentWorkspace: Workspace | null,
-  allWorkspaces: boolean,
-  workspaceInputs: Array<string> | undefined,
-): Array<Workspace> {
-  const requestedWorkspaces = workspaceInputs ?? []
-
-  if (allWorkspaces) {
-    return project.workspaces
-  }
-
-  if (requestedWorkspaces.length > 0) {
-    return requestedWorkspaces.map((workspaceName) => {
-      const workspace = project.workspaces.find((candidate) =>
-        matchesWorkspace(candidate, workspaceName),
-      )
-      if (!workspace) {
-        throw new UsageError(`Workspace not found: ${workspaceName}`)
-      }
-
-      return workspace
-    })
-  }
-
-  if (currentWorkspace) {
-    return [currentWorkspace]
-  }
-
-  throw new UsageError(`No workspace selected. Use --all-workspaces or --workspace.`)
-}
-
-function dedupeWorkspaces(workspaces: Array<Workspace>): Array<Workspace> {
-  const seen = new Set<string>()
-  const deduped: Array<Workspace> = []
-
-  for (const workspace of workspaces) {
-    if (seen.has(workspace.cwd)) {
-      continue
-    }
-
-    seen.add(workspace.cwd)
-    deduped.push(workspace)
-  }
-
-  return deduped
-}
-
-function matchesWorkspace(workspace: Workspace, input: string): boolean {
-  if (workspace.manifest.name) {
-    if (structUtils.stringifyIdent(workspace.manifest.name) === input) {
-      return true
-    }
-  }
-
-  if (workspace.relativeCwd === input) {
-    return true
-  }
-
-  const segments = workspace.relativeCwd.split('/')
-  const basename = segments[segments.length - 1] ?? workspace.relativeCwd
-  return basename === input
 }
