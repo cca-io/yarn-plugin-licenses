@@ -40,22 +40,13 @@ export function auditLicenseEntries(
   }
 
   return entries.map((entry) => {
-    const tokens = extractLicenseTokens(entry.licenseType)
-    let matchedAllowRule: string | null = null
-
-    for (const token of tokens) {
-      const matched = normalizedAllows.get(normalizeLicenseToken(token))
-      if (matched) {
-        matchedAllowRule = matched
-        break
-      }
-    }
+    const evaluation = evaluateLicenseExpression(entry.licenseType, normalizedAllows)
 
     return {
       ...entry,
-      status: matchedAllowRule ? 'allowed' : 'violation',
-      matchedAllowRule,
-      detectedLicenseTokens: tokens,
+      status: evaluation.allowed ? 'allowed' : 'violation',
+      matchedAllowRule: evaluation.matchedAllowRule,
+      detectedLicenseTokens: evaluation.detectedTokens,
     }
   })
 }
@@ -101,4 +92,234 @@ function extractLicenseTokens(licenseType: string): Array<string> {
 
 function normalizeLicenseToken(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toUpperCase()
+}
+
+type ExpressionEvaluation = {
+  allowed: boolean
+  matchedAllowRule: string | null
+  detectedTokens: Array<string>
+}
+
+type ExpressionNode =
+  | { type: 'license'; token: string }
+  | { type: 'and'; left: ExpressionNode; right: ExpressionNode }
+  | { type: 'or'; left: ExpressionNode; right: ExpressionNode }
+
+type ParseResult = {
+  node: ExpressionNode | null
+  tokens: Array<string>
+}
+
+function evaluateLicenseExpression(
+  licenseType: string,
+  normalizedAllows: Map<string, string>,
+): ExpressionEvaluation {
+  const parsed = parseLicenseExpression(licenseType)
+  if (!parsed.node) {
+    return {
+      allowed: false,
+      matchedAllowRule: null,
+      detectedTokens: parsed.tokens,
+    }
+  }
+
+  const evaluated = evaluateExpressionNode(parsed.node, normalizedAllows)
+  return {
+    allowed: evaluated.allowed,
+    matchedAllowRule: evaluated.matchedAllowRule,
+    detectedTokens: parsed.tokens,
+  }
+}
+
+function evaluateExpressionNode(
+  node: ExpressionNode,
+  normalizedAllows: Map<string, string>,
+): { allowed: boolean; matchedAllowRule: string | null } {
+  switch (node.type) {
+    case 'license': {
+      const matched = normalizedAllows.get(normalizeLicenseToken(node.token))
+      return { allowed: Boolean(matched), matchedAllowRule: matched ?? null }
+    }
+    case 'and': {
+      const left = evaluateExpressionNode(node.left, normalizedAllows)
+      if (!left.allowed) {
+        return { allowed: false, matchedAllowRule: null }
+      }
+
+      const right = evaluateExpressionNode(node.right, normalizedAllows)
+      if (!right.allowed) {
+        return { allowed: false, matchedAllowRule: null }
+      }
+
+      return { allowed: true, matchedAllowRule: left.matchedAllowRule ?? right.matchedAllowRule }
+    }
+    case 'or': {
+      const left = evaluateExpressionNode(node.left, normalizedAllows)
+      if (left.allowed) {
+        return left
+      }
+
+      return evaluateExpressionNode(node.right, normalizedAllows)
+    }
+  }
+}
+
+function parseLicenseExpression(licenseType: string): ParseResult {
+  const inputTokens = tokenizeExpression(licenseType)
+  if (inputTokens.length === 0) {
+    return { node: null, tokens: [] }
+  }
+
+  let cursor = 0
+  const detectedTokens: Array<string> = []
+
+  const peek = (): string | null => inputTokens[cursor] ?? null
+  const consume = (): string | null => {
+    const token = inputTokens[cursor]
+    if (token === undefined) {
+      return null
+    }
+
+    cursor += 1
+    return token
+  }
+
+  const parseOr = (): ExpressionNode | null => {
+    let node = parseAnd()
+    if (!node) {
+      return null
+    }
+
+    while (peekIsOperator(peek(), 'OR')) {
+      consume()
+      const right = parseAnd()
+      if (!right) {
+        return null
+      }
+      node = { type: 'or', left: node, right }
+    }
+
+    return node
+  }
+
+  const parseAnd = (): ExpressionNode | null => {
+    let node = parsePrimary()
+    if (!node) {
+      return null
+    }
+
+    while (peekIsOperator(peek(), 'AND')) {
+      consume()
+      const right = parsePrimary()
+      if (!right) {
+        return null
+      }
+      node = { type: 'and', left: node, right }
+    }
+
+    return node
+  }
+
+  const parsePrimary = (): ExpressionNode | null => {
+    const token = peek()
+    if (!token) {
+      return null
+    }
+
+    if (token === '(') {
+      consume()
+      const nested = parseOr()
+      if (!nested || peek() !== ')') {
+        return null
+      }
+      consume()
+      return nested
+    }
+
+    if (token === ')' || isOperatorToken(token)) {
+      return null
+    }
+
+    const licenseToken = consumeLicenseToken()
+    if (!licenseToken) {
+      return null
+    }
+
+    detectedTokens.push(licenseToken)
+    return { type: 'license', token: licenseToken }
+  }
+
+  const consumeLicenseToken = (): string | null => {
+    const start = consume()
+    if (!start) {
+      return null
+    }
+
+    const parts = [start]
+    while (true) {
+      const token = peek()
+      if (
+        !token ||
+        token === '(' ||
+        token === ')' ||
+        peekIsOperator(token, 'AND') ||
+        peekIsOperator(token, 'OR')
+      ) {
+        break
+      }
+
+      const current = consume()
+      if (!current) {
+        break
+      }
+
+      parts.push(current)
+    }
+
+    return parts.join(' ').trim()
+  }
+
+  const rootNode = parseOr()
+  if (!rootNode || cursor < inputTokens.length) {
+    const fallbackTokens = extractLicenseTokens(licenseType)
+    return { node: null, tokens: fallbackTokens }
+  }
+
+  return {
+    node: rootNode,
+    tokens: dedupeTokens(detectedTokens),
+  }
+}
+
+function tokenizeExpression(licenseType: string): Array<string> {
+  const spaced = licenseType.replace(/\(/g, ' ( ').replace(/\)/g, ' ) ')
+  return spaced
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0)
+}
+
+function dedupeTokens(tokens: Array<string>): Array<string> {
+  const seen = new Set<string>()
+  const unique: Array<string> = []
+
+  for (const token of tokens) {
+    const normalized = normalizeLicenseToken(token)
+    if (seen.has(normalized)) {
+      continue
+    }
+
+    seen.add(normalized)
+    unique.push(token)
+  }
+
+  return unique
+}
+
+function isOperatorToken(token: string): boolean {
+  return peekIsOperator(token, 'AND') || peekIsOperator(token, 'OR')
+}
+
+function peekIsOperator(token: string | null, operator: 'AND' | 'OR'): boolean {
+  return token !== null && token.toUpperCase() === operator
 }

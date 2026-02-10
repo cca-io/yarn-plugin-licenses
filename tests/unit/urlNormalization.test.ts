@@ -13,6 +13,11 @@ test('normalizes scp-like git syntax', () => {
   assert.equal(actual, 'https://github.com/org/repo')
 })
 
+test('normalizes ssh://git@host:owner/repo syntax', () => {
+  const actual = normalizeRepositoryUrl('ssh://git@github.com:org/repo.git')
+  assert.equal(actual, 'https://github.com/org/repo')
+})
+
 test('keeps https urls stable', () => {
   const actual = normalizeRepositoryUrl('https://github.com/org/repo.git')
   assert.equal(actual, 'https://github.com/org/repo')

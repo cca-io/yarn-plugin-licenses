@@ -30,6 +30,27 @@ test('auditLicenseEntries marks allowed and violation correctly', () => {
   assert.equal(hasAuditViolations(entries), true)
 })
 
+test('auditLicenseEntries enforces AND semantics', () => {
+  const entries = auditLicenseEntries(
+    [{ name: 'combo', version: '1.0.0', licenseType: 'MIT AND GPL-3.0', url: 'u' }],
+    ['MIT'],
+  )
+
+  assert.equal(entries[0]?.status, 'violation')
+  assert.equal(entries[0]?.matchedAllowRule, null)
+  assert.deepEqual(entries[0]?.detectedLicenseTokens, ['MIT', 'GPL-3.0'])
+})
+
+test('auditLicenseEntries supports OR semantics with grouped expressions', () => {
+  const entries = auditLicenseEntries(
+    [{ name: 'combo', version: '1.0.0', licenseType: '(MIT AND GPL-3.0) OR Apache-2.0', url: 'u' }],
+    ['Apache-2.0'],
+  )
+
+  assert.equal(entries[0]?.status, 'allowed')
+  assert.equal(entries[0]?.matchedAllowRule, 'Apache-2.0')
+})
+
 test('getAuditViolations filters allowed entries', () => {
   const violations = getAuditViolations([
     {

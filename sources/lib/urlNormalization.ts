@@ -60,7 +60,22 @@ function toHttps(input: string): string {
   }
 
   if (input.startsWith('ssh://git@')) {
-    return `https://${input.slice('ssh://git@'.length)}`
+    const rest = input.slice('ssh://git@'.length)
+    const slashIndex = rest.indexOf('/')
+    const colonIndex = rest.indexOf(':')
+
+    if (colonIndex >= 0 && (slashIndex === -1 || colonIndex < slashIndex)) {
+      const host = rest.slice(0, colonIndex)
+      const remainder = rest.slice(colonIndex + 1)
+      // Keep explicit numeric ports (host:7999/path), but normalize scp-like
+      // host:path URLs into browser-style host/path URLs.
+      if (/^\d+\//.test(remainder)) {
+        return `https://${host}:${remainder}`
+      }
+      return `https://${host}/${remainder}`
+    }
+
+    return `https://${rest}`
   }
 
   if (input.startsWith('git://')) {
