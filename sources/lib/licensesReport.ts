@@ -294,6 +294,9 @@ function collectExternalLocatorHashes({
   recursiveWorkspaces: boolean
   recursiveNpm: boolean
 }): Set<LocatorHash> {
+  // We traverse a mixed graph (workspace nodes + package locator nodes).
+  // Keeping separate visited/queued sets per node type prevents re-enqueue loops
+  // when workspace <-> dependency edges reference each other.
   const external = new Set<LocatorHash>()
   const visitedWorkspaceCwds = new Set<string>()
   const visitedLocatorHashes = new Set<LocatorHash>()
@@ -340,6 +343,8 @@ function collectExternalLocatorHashes({
 
         const resolvedWorkspace = project.tryWorkspaceByLocator(resolvedPackage)
         if (isWorkspaceDescriptor(project, descriptor) && resolvedWorkspace) {
+          // Internal workspaces are traversal edges only; we intentionally exclude
+          // them from final output because this tool reports third-party licenses.
           if (recursiveWorkspaces) {
             if (!queuedWorkspaceCwds.has(resolvedWorkspace.cwd)) {
               queuedWorkspaceCwds.add(resolvedWorkspace.cwd)
@@ -428,6 +433,8 @@ function resolveDescriptorResolution(
     return direct
   }
 
+  // Yarn can normalize descriptors (for example after protocol/range rewriting),
+  // so we try both the original and normalized hashes before fallback scanning.
   const normalized = configuration.normalizeDependency(descriptor)
   if (normalized.descriptorHash === descriptor.descriptorHash) {
     return resolveDescriptorResolutionByRangeVariant(project, descriptor)
@@ -450,6 +457,8 @@ function resolveDescriptorResolutionByRangeVariant(
   project: Project,
   descriptor: Descriptor,
 ): LocatorHash | undefined {
+  // Some descriptors in lockfiles have decorated ranges (e.g. "...::hash" or "...#...").
+  // We accept those as equivalent variants to avoid missing valid resolutions.
   for (const candidate of project.storedDescriptors.values()) {
     if (candidate.identHash !== descriptor.identHash) {
       continue
@@ -505,6 +514,8 @@ async function readPackageMetadata({
 
       const licenseType = manifest.license ?? parseRawLicenseType(rawMetadata.licenses) ?? 'UNKNOWN'
       const url =
+        // homepage is typically already user-facing and often more stable than repository
+        // (e.g. avoids VCS shorthand values in some package manifests).
         normalizeRepositoryUrl(rawMetadata.homepage) ??
         normalizeRepositoryUrl(rawMetadata.repository) ??
         ''

@@ -65,6 +65,7 @@ export function matchesWorkspace(workspace: Workspace, input: string): boolean {
     return true
   }
 
+  // Support short CLI inputs like "--workspace app-web" by matching folder basename.
   const segments = workspace.relativeCwd.split('/')
   const basename = segments[segments.length - 1] ?? workspace.relativeCwd
   return basename === input

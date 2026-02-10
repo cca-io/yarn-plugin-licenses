@@ -15,6 +15,8 @@ export function normalizeRepositoryUrl(input: unknown): string | null {
 
   const withoutGitPlus = base.startsWith('git+') ? base.slice(4) : base
   const https = toHttps(withoutGitPlus)
+  // Drop ".git" so output stays stable even when upstream metadata flips between
+  // clone URLs and browser URLs.
   const withoutGitSuffix = https.replace(/\.git$/i, '')
   const withoutTrailingSlash = withoutGitSuffix.replace(/\/$/, '')
 
@@ -37,6 +39,8 @@ function extractUrl(input: unknown): string | null {
 }
 
 function toHttps(input: string): string {
+  // npm metadata sometimes stores "owner/repo" shorthand in repository fields.
+  // Convert it to a canonical URL to keep report output deterministic.
   const githubShortcut = input.match(/^([^/@:\s]+)\/([^#\s]+)$/)
   if (githubShortcut) {
     const owner = githubShortcut[1]
