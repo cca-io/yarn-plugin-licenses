@@ -325,14 +325,10 @@ function collectExternalLocatorHashes({
       }
 
       visitedWorkspaceCwds.add(node.workspace.cwd)
-      const descriptors = getWorkspaceDependencyDescriptors(
-        configuration,
-        node.workspace,
-        includeDev,
-      )
+      const descriptors = getWorkspaceDependencyDescriptors(node.workspace, includeDev)
 
       for (const descriptor of descriptors) {
-        const resolution = project.storedResolutions.get(descriptor.descriptorHash)
+        const resolution = resolveDescriptorResolution(configuration, project, descriptor)
         if (!resolution) {
           continue
         }
@@ -343,7 +339,7 @@ function collectExternalLocatorHashes({
         }
 
         const resolvedWorkspace = project.tryWorkspaceByLocator(resolvedPackage)
-        if (resolvedWorkspace) {
+        if (isWorkspaceDescriptor(project, descriptor) && resolvedWorkspace) {
           if (recursiveWorkspaces) {
             if (!queuedWorkspaceCwds.has(resolvedWorkspace.cwd)) {
               queuedWorkspaceCwds.add(resolvedWorkspace.cwd)
@@ -390,7 +386,7 @@ function collectExternalLocatorHashes({
       }
 
       const resolvedWorkspace = project.tryWorkspaceByLocator(resolvedPackage)
-      if (resolvedWorkspace) {
+      if (isWorkspaceDescriptor(project, descriptor) && resolvedWorkspace) {
         if (recursiveWorkspaces) {
           if (!queuedWorkspaceCwds.has(resolvedWorkspace.cwd)) {
             queuedWorkspaceCwds.add(resolvedWorkspace.cwd)
@@ -412,21 +408,68 @@ function collectExternalLocatorHashes({
 }
 
 function getWorkspaceDependencyDescriptors(
-  configuration: Configuration,
   workspace: Workspace,
   includeDev: boolean,
 ): Array<Descriptor> {
-  const descriptors = [...workspace.manifest.dependencies.values()].map((descriptor) =>
-    configuration.normalizeDependency(descriptor),
-  )
+  const descriptors = [...workspace.manifest.dependencies.values()]
   if (includeDev) {
-    descriptors.push(
-      ...[...workspace.manifest.devDependencies.values()].map((descriptor) =>
-        configuration.normalizeDependency(descriptor),
-      ),
-    )
+    descriptors.push(...workspace.manifest.devDependencies.values())
   }
   return descriptors
+}
+
+function resolveDescriptorResolution(
+  configuration: Configuration,
+  project: Project,
+  descriptor: Descriptor,
+): LocatorHash | undefined {
+  const direct = project.storedResolutions.get(descriptor.descriptorHash)
+  if (direct) {
+    return direct
+  }
+
+  const normalized = configuration.normalizeDependency(descriptor)
+  if (normalized.descriptorHash === descriptor.descriptorHash) {
+    return resolveDescriptorResolutionByRangeVariant(project, descriptor)
+  }
+
+  return (
+    project.storedResolutions.get(normalized.descriptorHash) ??
+    resolveDescriptorResolutionByRangeVariant(project, descriptor)
+  )
+}
+
+function isWorkspaceDescriptor(project: Project, descriptor: Descriptor): boolean {
+  return (
+    descriptor.range.startsWith('workspace:') ||
+    project.tryWorkspaceByDescriptor(descriptor) !== null
+  )
+}
+
+function resolveDescriptorResolutionByRangeVariant(
+  project: Project,
+  descriptor: Descriptor,
+): LocatorHash | undefined {
+  for (const candidate of project.storedDescriptors.values()) {
+    if (candidate.identHash !== descriptor.identHash) {
+      continue
+    }
+
+    if (
+      candidate.range !== descriptor.range &&
+      !candidate.range.startsWith(`${descriptor.range}::`) &&
+      !candidate.range.startsWith(`${descriptor.range}#`)
+    ) {
+      continue
+    }
+
+    const resolution = project.storedResolutions.get(candidate.descriptorHash)
+    if (resolution) {
+      return resolution
+    }
+  }
+
+  return undefined
 }
 
 async function readPackageMetadata({

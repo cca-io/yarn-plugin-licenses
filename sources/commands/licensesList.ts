@@ -196,19 +196,15 @@ function countDirectWorkspaceEdges(
   let edges = 0
 
   for (const workspace of workspaces) {
-    const dependencyDescriptors = [...workspace.manifest.dependencies.values()].map((descriptor) =>
-      configuration.normalizeDependency(descriptor),
-    )
+    const dependencyDescriptors = [...workspace.manifest.dependencies.values()]
     if (includeDev) {
-      dependencyDescriptors.push(
-        ...[...workspace.manifest.devDependencies.values()].map((descriptor) =>
-          configuration.normalizeDependency(descriptor),
-        ),
-      )
+      dependencyDescriptors.push(...workspace.manifest.devDependencies.values())
     }
 
     for (const descriptor of dependencyDescriptors) {
-      const resolution = project.storedResolutions.get(descriptor.descriptorHash)
+      const resolution =
+        project.storedResolutions.get(descriptor.descriptorHash) ??
+        project.storedResolutions.get(configuration.normalizeDependency(descriptor).descriptorHash)
       if (!resolution) {
         continue
       }
@@ -218,7 +214,11 @@ function countDirectWorkspaceEdges(
         continue
       }
 
-      if (project.tryWorkspaceByLocator(resolvedPackage)) {
+      if (
+        (descriptor.range.startsWith('workspace:') ||
+          project.tryWorkspaceByDescriptor(descriptor) !== null) &&
+        project.tryWorkspaceByLocator(resolvedPackage)
+      ) {
         edges += 1
       }
     }

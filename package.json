@@ -12,7 +12,8 @@
     "format": "biome format --write sources tests",
     "typecheck": "tsc --noEmit",
     "test:unit": "yarn compile && node --test dist/tests/unit/**/*.test.js",
-    "test": "yarn lint && yarn typecheck && yarn test:unit"
+    "test:integration": "yarn build && yarn compile && node --test dist/tests/integration/**/*.test.js",
+    "test": "yarn lint && yarn typecheck && yarn test:unit && yarn test:integration"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",
