@@ -1,0 +1,61 @@
+name: Release Plugin Bundle
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install
+        run: yarn install --immutable
+
+      - name: Build plugin bundle
+        run: yarn build
+
+      - name: Prepare release asset
+        run: |
+          mkdir -p release
+          cp bundles/@cca-io/yarn-plugin-licenses.js release/@cca-io-yarn-plugin-licenses.js
+
+      - name: Build release notes
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          cat > release-notes.md <<EOF
+          ## Install
+
+          \`\`\`bash
+          yarn plugin import https://github.com/${REPO}/releases/download/${TAG}/@cca-io-yarn-plugin-licenses.js
+          \`\`\`
+
+          ## Asset
+
+          - \`@cca-io-yarn-plugin-licenses.js\`
+          EOF
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/@cca-io-yarn-plugin-licenses.js
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
