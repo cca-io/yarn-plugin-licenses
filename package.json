@@ -1,5 +1,5 @@
 {
-  "name": "@yarnpkg/plugin-licenses",
+  "name": "@cca-io/yarn-plugin-licenses",
   "version": "0.1.0",
   "private": true,
   "packageManager": "yarn@4.12.0",

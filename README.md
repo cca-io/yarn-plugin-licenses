@@ -23,12 +23,12 @@ corepack yarn build
 
 Bundle output:
 
-`/Users/christoph/projects/cca/licenses/bundles/@yarnpkg/plugin-licenses.js`
+`/Users/christoph/projects/cca/licenses/bundles/@cca-io/yarn-plugin-licenses.js`
 
 ## Import plugin in a target project
 
 ```bash
-yarn plugin import /absolute/path/to/bundles/@yarnpkg/plugin-licenses.js
+yarn plugin import /absolute/path/to/bundles/@cca-io/yarn-plugin-licenses.js
 ```
 
 ## Usage
