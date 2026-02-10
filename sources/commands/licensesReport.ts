@@ -3,7 +3,12 @@ import { Configuration, Project, structUtils, type Workspace } from '@yarnpkg/co
 import { ppath, xfs } from '@yarnpkg/fslib'
 import { Option, UsageError } from 'clipanion'
 
-import { collectLicenseEntries, renderTextReport, resolveOutputPath } from '../lib/licensesReport'
+import {
+  collectLicenseEntries,
+  type DebugEntry,
+  renderTextReport,
+  resolveOutputPath,
+} from '../lib/licensesReport'
 
 export class LicensesReportCommand extends BaseCommand {
   static override paths = [[`licenses`, `list`]]
@@ -52,6 +57,10 @@ export class LicensesReportCommand extends BaseCommand {
     required: false,
   })
 
+  debugPackage = Option.String(`--debug-package`, {
+    required: false,
+  })
+
   json = Option.Boolean(`--json`, false, {
     description: `emit JSON instead of text`,
   })
@@ -84,14 +93,26 @@ export class LicensesReportCommand extends BaseCommand {
       }
     }
 
-    const entries = await collectLicenseEntries({
+    const collectOptions = {
       configuration,
       project,
       workspaces: seedWorkspaces,
       includeDev: this.includeDev,
       recursiveWorkspaces: this.recursiveWorkspaces,
       recursiveNpm: this.recursiveNpm,
-    })
+      onDebugEntry: (entry: DebugEntry) => {
+        this.context.stderr.write(`debug-package: ${entry.name}@${entry.version}\n`)
+        this.context.stderr.write(`  licenseType: ${entry.licenseType}\n`)
+        this.context.stderr.write(`  raw.repository: ${stringifyUnknown(entry.rawRepository)}\n`)
+        this.context.stderr.write(`  raw.homepage: ${stringifyUnknown(entry.rawHomepage)}\n`)
+        this.context.stderr.write(`  normalized.url: ${entry.normalizedUrl}\n`)
+      },
+    }
+    if (this.debugPackage) {
+      Object.assign(collectOptions, { debugPackageName: this.debugPackage })
+    }
+
+    const entries = await collectLicenseEntries(collectOptions)
 
     const output = this.json ? `${JSON.stringify(entries, null, 2)}\n` : renderTextReport(entries)
 
@@ -204,4 +225,20 @@ function countDirectWorkspaceEdges(
   }
 
   return edges
+}
+
+function stringifyUnknown(value: unknown): string {
+  if (value === undefined) {
+    return 'undefined'
+  }
+
+  if (typeof value === 'string') {
+    return value
+  }
+
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
 }

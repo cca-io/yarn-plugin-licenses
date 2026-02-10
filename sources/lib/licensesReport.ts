@@ -52,11 +52,24 @@ type CollectOptions = {
   includeDev: boolean
   recursiveWorkspaces: boolean
   recursiveNpm: boolean
+  debugPackageName?: string
+  onDebugEntry?: (entry: DebugEntry) => void
 }
 
 type PackageMetadata = {
   licenseType: string
   url: string
+  rawRepository: unknown
+  rawHomepage: unknown
+}
+
+export type DebugEntry = {
+  name: string
+  version: string
+  rawRepository: unknown
+  rawHomepage: unknown
+  normalizedUrl: string
+  licenseType: string
 }
 
 export async function collectLicenseEntries({
@@ -66,6 +79,8 @@ export async function collectLicenseEntries({
   includeDev,
   recursiveWorkspaces,
   recursiveNpm,
+  debugPackageName,
+  onDebugEntry,
 }: CollectOptions): Promise<Array<LicenseEntry>> {
   const externalLocatorHashes = collectExternalLocatorHashes({
     configuration,
@@ -103,6 +118,38 @@ export async function collectLicenseEntries({
       url: metadata.url,
     }
   })
+
+  if (debugPackageName && onDebugEntry) {
+    for (const locatorHash of externalLocatorHashes) {
+      const pkg = project.storedPackages.get(locatorHash)
+      if (!pkg) {
+        continue
+      }
+
+      const name = structUtils.stringifyIdent(pkg)
+      if (name !== debugPackageName) {
+        continue
+      }
+
+      const metadata = await readPackageMetadata({
+        project,
+        fetcher,
+        cache,
+        report,
+        checksums,
+        pkg,
+      })
+
+      onDebugEntry({
+        name,
+        version: pkg.version ?? '',
+        rawRepository: metadata.rawRepository,
+        rawHomepage: metadata.rawHomepage,
+        normalizedUrl: metadata.url,
+        licenseType: metadata.licenseType,
+      })
+    }
+  }
 
   entries.sort((left, right) => {
     const byName = left.name.localeCompare(right.name)
@@ -307,13 +354,15 @@ async function readPackageMetadata({
 
     const licenseType = manifest.license ?? parseRawLicenseType(rawMetadata.licenses) ?? 'UNKNOWN'
     const url =
-      normalizeRepositoryUrl(rawMetadata.repository) ??
       normalizeRepositoryUrl(rawMetadata.homepage) ??
+      normalizeRepositoryUrl(rawMetadata.repository) ??
       ''
 
     return {
       licenseType,
       url,
+      rawRepository: rawMetadata.repository,
+      rawHomepage: rawMetadata.homepage,
     }
   } finally {
     fetchResult.releaseFs?.()
