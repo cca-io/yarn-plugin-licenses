@@ -109,7 +109,7 @@ test('licenses audit outputs violations only and exits non-zero on mismatch', as
   }
 })
 
-test('patched dependency metadata is respected and homepage is preferred', async () => {
+test('patched dependency metadata is respected for URL selection', async () => {
   const fixture = createFixtureProject()
   try {
     installFixture(fixture)
@@ -124,7 +124,7 @@ test('patched dependency metadata is respected and homepage is preferred', async
     )
 
     assert.ok(entry)
-    assert.equal(entry.url, 'https://github.com/owner/repo#readme')
+    assert.equal(entry.url, 'https://github.com/owner/repo')
   } finally {
     cleanupFixture(fixture)
   }

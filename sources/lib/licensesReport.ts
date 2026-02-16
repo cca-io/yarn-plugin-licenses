@@ -107,6 +107,16 @@ type PackageMetadata = {
   rawHomepage: unknown
 }
 
+export function selectPackageUrl({
+  repository,
+  homepage,
+}: {
+  repository: unknown
+  homepage: unknown
+}): string {
+  return normalizeRepositoryUrl(repository) ?? normalizeRepositoryUrl(homepage) ?? ''
+}
+
 export type DebugEntry = {
   name: string
   version: string
@@ -513,12 +523,10 @@ async function readPackageMetadata({
       }
 
       const licenseType = manifest.license ?? parseRawLicenseType(rawMetadata.licenses) ?? 'UNKNOWN'
-      const url =
-        // homepage is typically already user-facing and often more stable than repository
-        // (e.g. avoids VCS shorthand values in some package manifests).
-        normalizeRepositoryUrl(rawMetadata.homepage) ??
-        normalizeRepositoryUrl(rawMetadata.repository) ??
-        ''
+      const url = selectPackageUrl({
+        repository: rawMetadata.repository,
+        homepage: rawMetadata.homepage,
+      })
 
       return {
         licenseType,

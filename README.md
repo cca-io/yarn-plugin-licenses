@@ -118,6 +118,7 @@ Notes:
 
 - Output contains third-party dependencies only (workspaces are excluded).
 - Output is sorted by package name, then version, then URL for stable diffs.
+- URL selection prefers `repository`; `homepage` is used as fallback.
 - Repository URLs are normalized to stable HTTPS values.
 - If `-o/--output` is omitted, JSON is printed to stdout.
 
