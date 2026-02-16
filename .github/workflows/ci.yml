@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -41,3 +44,50 @@ jobs:
 
       - name: Build plugin
         run: yarn build
+
+      - name: Upload bundle for release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && matrix.node == '24.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-bundle
+          path: bundles/@yarnpkg/plugin-licenses.js
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download built plugin bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: plugin-bundle
+          path: release
+
+      - name: Prepare release asset
+        run: mv release/plugin-licenses.js release/@cca-io-yarn-plugin-licenses.js
+
+      - name: Build release notes
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          cat > release-notes.md <<EOF
+          ## Install
+
+          \`\`\`bash
+          yarn plugin import https://github.com/${REPO}/releases/download/${TAG}/@cca-io-yarn-plugin-licenses.js
+          \`\`\`
+
+          ## Asset
+
+          - \`@cca-io-yarn-plugin-licenses.js\`
+          EOF
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/@cca-io-yarn-plugin-licenses.js
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
