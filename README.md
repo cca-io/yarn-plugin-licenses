@@ -34,10 +34,10 @@ yarn plugin import /absolute/path/to/bundles/@yarnpkg/plugin-licenses.js
 Import from a GitHub release asset:
 
 ```bash
-yarn plugin import https://github.com/cca-io/yarn-plugin-licenses/releases/download/v0.1.0/@cca-io-yarn-plugin-licenses.js
+yarn plugin import https://github.com/cca-io/yarn-plugin-licenses/releases/download/{TAG}/@cca-io-yarn-plugin-licenses.js
 ```
 
-Releases are created automatically when you push a tag like `v0.1.0`.
+Releases are created automatically when you push a version tag (for example, `vX.Y.Z`).
 
 ## Usage
 
