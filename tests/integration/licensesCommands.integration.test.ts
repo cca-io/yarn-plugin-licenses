@@ -369,7 +369,11 @@ function createPatchFile(root: string): void {
 }
 
 function installFixture(cwd: string): void {
-  const installResult = runYarn(cwd, ['install', '--mode=skip-build'], { expectSuccess: true })
+  // Fixtures are generated on the fly and start without a lockfile.
+  // CI enables immutable installs by default, so allow lockfile creation here.
+  const installResult = runYarn(cwd, ['install', '--mode=skip-build', '--no-immutable'], {
+    expectSuccess: true,
+  })
   assert.equal(installResult.code, 0)
 }
 
