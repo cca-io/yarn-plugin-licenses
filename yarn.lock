@@ -256,6 +256,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@cca-io/yarn-plugin-licenses@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "@cca-io/yarn-plugin-licenses@workspace:."
+  dependencies:
+    "@biomejs/biome": "npm:latest"
+    "@types/node": "npm:latest"
+    "@yarnpkg/builder": "npm:latest"
+    "@yarnpkg/cli": "npm:latest"
+    "@yarnpkg/core": "npm:latest"
+    "@yarnpkg/fslib": "npm:latest"
+    clipanion: "npm:latest"
+    typescript: "npm:latest"
+  languageName: unknown
+  linkType: soft
+
 "@isaacs/cliui@npm:^8.0.2":
   version: 8.0.2
   resolution: "@isaacs/cliui@npm:8.0.2"
@@ -859,21 +874,6 @@ __metadata:
   checksum: 10c0/a407b6ee832171d1e5bd7190673f582ec05bbf3942e939ac1224cf78115c43cc08d17d24878d724cc03aa7931da4d72f69a990e1918b3f888c6c8471d879cdb3
   languageName: node
   linkType: hard
-
-"@yarnpkg/plugin-licenses@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "@yarnpkg/plugin-licenses@workspace:."
-  dependencies:
-    "@biomejs/biome": "npm:latest"
-    "@types/node": "npm:latest"
-    "@yarnpkg/builder": "npm:latest"
-    "@yarnpkg/cli": "npm:latest"
-    "@yarnpkg/core": "npm:latest"
-    "@yarnpkg/fslib": "npm:latest"
-    clipanion: "npm:latest"
-    typescript: "npm:latest"
-  languageName: unknown
-  linkType: soft
 
 "@yarnpkg/plugin-link@npm:^3.0.2":
   version: 3.0.2
