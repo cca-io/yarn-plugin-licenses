@@ -5,6 +5,7 @@
 .pnp.*
 node_modules
 bundles
+release
 dist
 coverage
 .DS_Store

@@ -33,7 +33,7 @@ jobs:
       - name: Prepare release asset
         run: |
           mkdir -p release
-          cp bundles/@cca-io/yarn-plugin-licenses.js release/@cca-io-yarn-plugin-licenses.js
+          cp bundles/@yarnpkg/plugin-licenses.js release/@cca-io-yarn-plugin-licenses.js
 
       - name: Build release notes
         env:
