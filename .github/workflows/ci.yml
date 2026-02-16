@@ -66,16 +66,13 @@ jobs:
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
-        env:
-          TAG: ${{ github.ref_name }}
-          REPO: ${{ github.repository }}
         with:
           files: release/plugin-licenses.js
           body: |
             ## Install
 
             ```bash
-            yarn plugin import https://github.com/${REPO}/releases/download/${TAG}/plugin-licenses.js
+            yarn plugin import https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/plugin-licenses.js
             ```
 
             ## Asset
